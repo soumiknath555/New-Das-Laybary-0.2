@@ -1,5 +1,8 @@
-import 'package:sqflite/sqflite.dart';
+import 'dart:io';
+
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
 
 class BooksTypeDB {
   static final BooksTypeDB instance = BooksTypeDB._init();
@@ -14,9 +17,24 @@ class BooksTypeDB {
     return _database!;
   }
 
-  Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+  /// ✅ Android + Windows SAFE DB path
+  Future<Database> _initDB(String fileName) async {
+    Directory dir;
+
+    if (Platform.isWindows) {
+      // 👉 Windows-এ তোমার নির্দিষ্ট folder
+      dir = Directory(r'C:\Users\Soumik Nath\New Das Laybary');
+
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+    } else {
+      // 👉 Android / Mobile-এ safe system path
+      dir = await getApplicationDocumentsDirectory();
+    }
+
+    final String path = join(dir.path, fileName);
+    print('DB PATH: $path');
 
     return await openDatabase(
       path,
@@ -24,6 +42,7 @@ class BooksTypeDB {
       onCreate: _onCreateDB,
     );
   }
+
 
   // ---------------- TABLE ----------------
   Future<void> _onCreateDB(Database db, int version) async {
@@ -66,7 +85,10 @@ class BooksTypeDB {
 
   Future<List<Map<String, dynamic>>> getAll() async {
     final db = await database;
-    return await db.query('books_type', orderBy: 'created_at DESC');
+    return await db.query(
+      'books_type',
+      orderBy: 'created_at DESC',
+    );
   }
 
   Future<int> update(

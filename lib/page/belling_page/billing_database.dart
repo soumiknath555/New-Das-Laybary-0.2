@@ -1,105 +1,131 @@
+import 'dart:io';
+
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 class BillingDatabase {
-  static final BillingDatabase instance = BillingDatabase._init();
-  static Database? _database;
+  BillingDatabase._();
+  static final BillingDatabase instance = BillingDatabase._();
 
-  BillingDatabase._init();
+  static Database? _database;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('library.db'); // 🔴 SAME DB FILE
+    _database = await _initDB();
     return _database!;
   }
 
-  Future<Database> _initDB(String fileName) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, fileName);
+  Future<Database> _initDB() async {
+    Directory dir;
 
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _onCreateDB, // ⚠️ first run only
-    );
-  }
+    if (Platform.isWindows) {
+      // 👉 তোমার custom Windows folder
+      dir = Directory(r'C:\Users\Soumik Nath\New Das Laybary');
 
-  // ⚠️ TABLE CREATE (same as yours)
-  Future<void> _onCreateDB(Database db, int version) async {
-    await db.execute('''
-      CREATE TABLE books (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-        title TEXT,
-        author TEXT,
-        description TEXT,
-
-        publication_id INTEGER,
-        publication_name TEXT,
-
-        book_type_id INTEGER,
-        book_type_name TEXT,
-        
-        book_language TEXT,
-
-        class_id INTEGER,
-        class_name TEXT,
-
-        mrp INTEGER,
-        sell_discount INTEGER,
-        purchase_discount INTEGER,
-        price_type TEXT,
-
-        purchase_price INTEGER,
-        sell_price INTEGER,
-        profit INTEGER,
-
-        quantity INTEGER,
-        shop_list TEXT,
-
-        front_image BLOB,
-        created_at INTEGER
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS book_images (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        book_id INTEGER,
-        image BLOB
-      )
-    ''');
-  }
-
-  // ✅ GET ALL BOOKS (NO FILTER)
-  Future<List<Map<String, dynamic>>> getAllBooks() async {
-    final db = await database;
-    return await db.query(
-      'books',
-      orderBy: 'id DESC',
-    );
-  }
-
-  // ✅ SEARCH (optional)
-  Future<List<Map<String, dynamic>>> searchBooks(String keyword) async {
-    final db = await database;
-
-    if (keyword.isEmpty) {
-      return getAllBooks();
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+    } else {
+      // 👉 Android safe location
+      dir = await getApplicationDocumentsDirectory();
     }
 
-    return await db.query(
-      'books',
-      where: '''
-        title LIKE ? OR
-        author LIKE ? OR
-        publication_name LIKE ? OR
-        class_name LIKE ? OR
-        book_type_name LIKE ? OR
-        book_language LIKE ?
-      ''',
-      whereArgs: List.filled(6, '%$keyword%'),
-      orderBy: 'id DESC',
+    final String path = join(dir.path, 'billing.db');
+    print('BILLING DB PATH: $path');
+
+    return openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+        CREATE TABLE invoices (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT,
+          phone TEXT,
+          address TEXT,
+          totalQty INTEGER,
+          totalMrp INTEGER,
+          totalSaved INTEGER,
+          extraDiscount INTEGER,
+          finalPayable INTEGER,
+          createdAt TEXT
+        )
+      ''');
+      },
     );
   }
+
+
+  /// ✅ SAVE INVOICE
+  Future<void> saveInvoice({
+    required Map<String, dynamic> invoiceData,
+    required Map<int, int> cart,
+    required List<Map<String, dynamic>> books,
+    String? name,
+    String? phone,
+    String? address,
+  }) async {
+    final db = await database;
+
+    await db.insert('invoices', {
+      "name": name,
+      "phone": phone,
+      "address": address,
+      "totalQty": invoiceData['totalQty'],
+      "totalMrp": invoiceData['totalMrp'],
+      "totalSaved": invoiceData['totalSaved'],
+      "extraDiscount": invoiceData['extraDiscount'],
+      "finalPayable": invoiceData['finalPayable'],
+      "createdAt": DateTime.now().toIso8601String(),
+    });
+  }
+
+
+
+
+  /// ✅ TODAY SELL COUNT + TOTAL AMOUNT
+  Future<Map<String, int>> getTodaySell() async {
+    final db = await database;
+
+    final today = DateTime.now();
+    final start = DateTime(today.year, today.month, today.day)
+        .toIso8601String();
+
+    final result = await db.rawQuery('''
+    SELECT 
+      COUNT(id) as totalSell,
+      IFNULL(SUM(finalPayable), 0) as totalAmount
+    FROM invoices
+    WHERE createdAt >= ?
+  ''', [start]);
+
+    return {
+      "totalSell": result.first["totalSell"] as int,
+      "totalAmount": result.first["totalAmount"] as int,
+    };
+  }
+
+
+  /// ✅ TOTAL SELL COUNT + TOTAL AMOUNT (ALL TIME)
+  Future<Map<String, int>> getTotalSell() async {
+    final db = await database;
+
+    final result = await db.rawQuery('''
+    SELECT 
+      COUNT(id) as totalSell,
+      IFNULL(SUM(finalPayable), 0) as totalAmount
+    FROM invoices
+  ''');
+
+    return {
+      "totalSell": result.first["totalSell"] as int,
+      "totalAmount": result.first["totalAmount"] as int,
+    };
+  }
+
+
+
+
 }
+

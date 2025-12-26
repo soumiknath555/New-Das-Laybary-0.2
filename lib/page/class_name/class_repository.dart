@@ -1,5 +1,8 @@
-import 'package:sqflite/sqflite.dart';
+import 'dart:io';
+
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 class ClassItem {
@@ -42,65 +45,85 @@ class ClassRepository {
     return _db!;
   }
 
-  Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+  /// ✅ Correct DB path for Android + Windows
+  Future<Database> _initDB(String fileName) async {
+    Directory dir;
+
+    if (Platform.isWindows) {
+      // 👉 Windows custom folder
+      dir = Directory(r'C:\Users\Soumik Nath\New Das Laybary');
+
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+    } else {
+      // 👉 Android / Mobile safe path
+      dir = await getApplicationDocumentsDirectory();
+    }
+
+    final String path = join(dir.path, fileName);
+    print('CLASSES DB PATH: $path');
 
     return await openDatabase(
       path,
       version: 1,
       onCreate: (db, version) async {
         await db.execute('''
-          CREATE TABLE classes (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            updatedAt INTEGER
-          )
-        ''');
+        CREATE TABLE classes (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          updatedAt INTEGER NOT NULL
+        )
+      ''');
       },
     );
   }
 
-  // Get All
-  Future<List<ClassItem>> getAll() async {
-    final db = await instance.database;
-    final data = await db.query("classes", orderBy: "name ASC");
+  // ================= CRUD =================
 
+  Future<List<ClassItem>> getAll() async {
+    final db = await database;
+    final data = await db.query(
+      "classes",
+      orderBy: "name COLLATE NOCASE ASC",
+    );
     return data.map((e) => ClassItem.fromMap(e)).toList();
   }
 
-  // Create
   Future<void> createClass(String name) async {
-    final db = await instance.database;
-    final id = const Uuid().v4();
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final db = await database;
 
-    await db.insert("classes", {
-      'id': id,
-      'name': name,
-      'updatedAt': now,
-    });
+    await db.insert(
+      "classes",
+      {
+        'id': const Uuid().v4(),
+        'name': name,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
-  // Update
   Future<void> updateClass(ClassItem item, String newName) async {
-    final db = await instance.database;
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final db = await database;
 
     await db.update(
       "classes",
       {
         'name': newName,
-        'updatedAt': now,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
       },
       where: "id = ?",
       whereArgs: [item.id],
     );
   }
 
-  // Delete
   Future<void> deleteClass(String id) async {
-    final db = await instance.database;
-    await db.delete("classes", where: "id = ?", whereArgs: [id]);
+    final db = await database;
+    await db.delete(
+      "classes",
+      where: "id = ?",
+      whereArgs: [id],
+    );
   }
 }

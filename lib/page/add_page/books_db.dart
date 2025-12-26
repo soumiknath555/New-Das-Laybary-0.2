@@ -1,6 +1,8 @@
-// lib/db/books_db.dart
 import 'dart:typed_data';
+import 'dart:io';
+
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 class BooksDB {
@@ -9,19 +11,27 @@ class BooksDB {
 
   BooksDB._init();
 
+  // ---------------- DB INIT ----------------
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB('books.db');
     return _database!;
   }
 
-  Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+  /// ✅ Windows + Android SAFE PATH
+  Future<Database> _initDB(String fileName) async {
+    final Directory dir = await getApplicationDocumentsDirectory();
+    final String path = join(dir.path, fileName);
+
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _createDB,
+    );
   }
 
-  Future _createDB(Database db, int version) async {
+  // ---------------- TABLE ----------------
+  Future<void> _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE books (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,23 +52,34 @@ class BooksDB {
     ''');
   }
 
+  // ---------------- CRUD ----------------
+
   Future<int> addBook(Map<String, dynamic> data) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.insert('books', data);
   }
 
   Future<List<Map<String, dynamic>>> getAllBooks() async {
-    final db = await instance.database;
+    final db = await database;
     return await db.query('books', orderBy: 'created_at DESC');
   }
 
   Future<int> updateBook(int id, Map<String, dynamic> data) async {
-    final db = await instance.database;
-    return await db.update('books', data, where: 'id = ?', whereArgs: [id]);
+    final db = await database;
+    return await db.update(
+      'books',
+      data,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<int> deleteBook(int id) async {
-    final db = await instance.database;
-    return await db.delete('books', where: 'id = ?', whereArgs: [id]);
+    final db = await database;
+    return await db.delete(
+      'books',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 }

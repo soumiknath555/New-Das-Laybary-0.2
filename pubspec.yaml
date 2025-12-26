@@ -54,6 +54,16 @@ dependencies:
   path: ^1.9.1
   sqflite_common_ffi: ^2.3.6
   super_drag_and_drop: ^0.7.0
+  shared_preferences: ^2.5.3
+  url_launcher: ^6.3.2
+  share_plus: ^12.0.1
+  pdf: ^3.11.3
+  printing: ^5.14.2
+  flutter_esc_pos_bluetooth: ^0.0.2
+  open_filex: ^4.7.0
+  esc_pos_printer_plus: ^0.1.1
+  esc_pos_utils_plus: ^2.0.4
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
@@ -71,11 +81,23 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    - family: HindSiliguri
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+        - asset: assets/fonts/NotoSans-Bold.ttf
+        - asset: assets/fonts/HindSiliguri-Regular.ttf
+        - asset: assets/fonts/HindSiliguri-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/NotoSansBengali-Regular.ttf
+        - asset: assets/fonts/NotoSansBengali-Bold.ttf
+          weight: 700
+
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -126,25 +126,30 @@ class _AddPageState extends State<AddPage> {
 
   double get purchasePrice {
     final mrp = _toDouble(mrpCtrl.text);
-    final dis = _toDouble(purchaseCtrl.text);
+    final val = _toDouble(purchaseCtrl.text);
 
     if (priceType == "Discount") {
-      return mrp - (mrp * dis / 100);
+      // % discount
+      return mrp - (mrp * val / 100);
     } else {
-      return mrp - dis;
+      // Flat price (FINAL price)
+      return val;
     }
   }
 
   double get sellPrice {
     final mrp = _toDouble(mrpCtrl.text);
-    final dis = _toDouble(discountCtrl.text);
+    final val = _toDouble(discountCtrl.text);
 
     if (priceType == "Discount") {
-      return mrp - (mrp * dis / 100);
+      // % discount
+      return mrp - (mrp * val / 100);
     } else {
-      return mrp - dis;
+      // Flat price (FINAL price)
+      return val;
     }
   }
+
 
 
   double get profit => sellPrice - purchasePrice;
@@ -502,11 +507,18 @@ class _AddPageState extends State<AddPage> {
     // ===============================
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Book saved successfully")),
-      );
+        const  SnackBar(
+        content: Text(
+        "Book saved successfully",
+        style: TextStyle(color: Colors.white),
+      ),
+    backgroundColor: Colors.green,
+    ),);
 
-      Navigator.pop(context, true); // refresh previous page
+
+    Navigator.pop(context, true); // refresh previous page
     }
+
   }
 
 
@@ -785,6 +797,24 @@ class _AddPageState extends State<AddPage> {
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
+
+
+                DropdownMenuItem(
+                  value: "Project",
+                  child: Text(
+                    "Project",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+
+                DropdownMenuItem(
+                  value: "Test Paper",
+                  child: Text(
+                    "Test Paper",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+
                 DropdownMenuItem(
                   value: "Khata",
                   child: Text(
@@ -810,6 +840,13 @@ class _AddPageState extends State<AddPage> {
                   value: "Helping Tools",
                   child: Text(
                     "Helping Tools",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: "Others",
+                  child: Text(
+                    "Others",
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
@@ -923,12 +960,12 @@ class _AddPageState extends State<AddPage> {
           // Dialog title
           title: const Text(
             "Select Shop",
-            style: TextStyle(color: AppColors.BLACK_9),
+            style: TextStyle(color: AppColors.WHITE_9),
           ),
 
           searchable: true,
 
-          itemsTextStyle: const TextStyle(color: AppColors.BLACK_9),
+          itemsTextStyle: const TextStyle(color: AppColors.WHITE_9),
           selectedItemsTextStyle:
           const TextStyle(color: Colors.green),
 

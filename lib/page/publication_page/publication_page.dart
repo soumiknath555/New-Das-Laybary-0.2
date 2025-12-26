@@ -30,9 +30,9 @@ class _PublicationPageState extends State<Publication_Page> {
   void showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, style: const TextStyle(fontSize: 16)),
+        content: Text(msg, style: const TextStyle(fontSize: 16, color: Colors.black,fontWeight: FontWeight.bold)),
         duration: const Duration(seconds: 2),
-        backgroundColor: Colors.black87,
+        backgroundColor: Colors.greenAccent,
       ),
     );
   }

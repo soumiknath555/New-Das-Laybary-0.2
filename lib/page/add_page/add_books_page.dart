@@ -40,6 +40,9 @@ class _AddBooksPageState extends State<AddBooksPage> {
     "Text": Colors.blueAccent,
     "Pen": Colors.deepPurple,
     "Pencil": Colors.orange,
+    "Test Paper" : Colors.red,
+    "Project" : Colors.purpleAccent,
+    "Others" : Colors.cyanAccent,
     "Khata": Colors.brown,
     "Helping Tools": Colors.teal,
     "Chatro bondhu": Colors.pink,
@@ -275,6 +278,26 @@ class _AddBooksPageState extends State<AddBooksPage> {
     TextStyle valueStyle =
     const TextStyle(color: Colors.white, fontSize: 13);
 
+    TextStyle orengeStyle =
+    const TextStyle(color: Colors.orange, fontSize: 15);
+
+    TextStyle limeStyle =
+    const TextStyle(color: Colors.limeAccent, fontSize: 15, fontWeight: FontWeight.bold);
+
+
+    TextStyle purpleStyle =
+    const TextStyle(color: Colors.purpleAccent, fontSize: 15 , fontWeight: FontWeight.bold);
+
+    TextStyle skyStyle =
+    const TextStyle(color: Colors.cyanAccent, fontSize: 15, fontWeight: FontWeight.bold);
+
+    TextStyle redStyle =
+    const TextStyle(color: Colors.red, fontSize: 13);
+
+
+
+
+
     final String bookMedium =
     (book['book_language'] ?? '').toString();
 
@@ -304,7 +327,7 @@ class _AddBooksPageState extends State<AddBooksPage> {
             softWrap: true,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 17,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -313,7 +336,7 @@ class _AddBooksPageState extends State<AddBooksPage> {
 
           /// AUTHOR
           if (book['author'] != null && book['author'].toString().isNotEmpty)
-            Text("Author: ${book['author']}", style: valueStyle),
+            Text("Author: ${book['author']}", style: orengeStyle),
 
           const SizedBox(height: 4),
 
@@ -348,17 +371,13 @@ class _AddBooksPageState extends State<AddBooksPage> {
           if (book['publication_name'] != null)
             Text(
               "Publication: ${book['publication_name']}",
-              style: valueStyle,
+              style: limeStyle,
             ),
-          if (book['book_type_name'] != null)
-            Text(
-              "Book Type: ${book['book_type_name']}",
-              style: valueStyle,
-            ),
+
           if (book['class_name'] != null)
             Text(
-              "Class: ${book['class_name']}",
-              style: valueStyle,
+              "${book['class_name']}",
+              style: skyStyle,
             ),
 
           const SizedBox(height: 8),
@@ -378,17 +397,19 @@ class _AddBooksPageState extends State<AddBooksPage> {
           const SizedBox(height: 6),
 
           /// DISCOUNTS
-          Text(
-            "Sell Disc: ${book['sell_discount']}% | Purchase Disc: ${book['purchase_discount']}%",
-            style: labelStyle,
-          ),
+          /// 🔥 ONLY SHOW FOR DISCOUNT TYPE
+          if (book['price_type'] == "Discount")
+            Text(
+              "Sell Disc: ${book['sell_discount']}% | Purchase Disc: ${book['purchase_discount']}%",
+              style: redStyle,
+            ),
 
           const SizedBox(height: 4),
 
           /// STOCK
           Text(
             "Stock: $qty | Price Type: ${book['price_type']}",
-            style: labelStyle,
+            style: purpleStyle,
           ),
 
           const SizedBox(height: 4),
@@ -443,7 +464,7 @@ class _AddBooksPageState extends State<AddBooksPage> {
                 softWrap: true,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 17,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -452,7 +473,7 @@ class _AddBooksPageState extends State<AddBooksPage> {
 
               /// AUTHOR
               if (book['author'] != null)
-                Text("Author: ${book['author']}", style: valueStyle),
+                Text("Author: ${book['author']}", style: orengeStyle),
 
 
               const SizedBox(height: 4),
@@ -487,13 +508,10 @@ class _AddBooksPageState extends State<AddBooksPage> {
               /// PUBLICATION / TYPE / CLASS
               if (book['publication_name'] != null)
                 Text("Publication: ${book['publication_name']}",
-                    style: valueStyle),
+                    style: limeStyle),
 
-              if (book['book_type_name'] != null)
-                Text("Book Type: ${book['book_type_name']}",
-                    style: valueStyle),
               if (book['class_name'] != null)
-                Text("Class: ${book['class_name']}", style: valueStyle),
+                Text("${book['class_name']}", style: skyStyle),
 
               const SizedBox(height: 8),
 
@@ -517,12 +535,12 @@ class _AddBooksPageState extends State<AddBooksPage> {
                   Text("Per 1 Piece Price", style: labelStyle),
                   SizedBox(width: 12),
 
-                  /// DISCOUNTS
-                  Text(
-                    "Sell Disc: ${book['sell_discount']}% | Purchase Disc: ${book['purchase_discount']}%",
-                    style: snLabelStyle,
-                  ),
-
+                  /// 🔥 ONLY SHOW FOR DISCOUNT TYPE
+                  if (book['price_type'] == "Discount")
+                    Text(
+                      "Sell Disc: ${book['sell_discount']}% | Purchase Disc: ${book['purchase_discount']}%",
+                      style: redStyle,
+                    ),
                 ],
               ),
 
@@ -531,7 +549,7 @@ class _AddBooksPageState extends State<AddBooksPage> {
               /// STOCK
               Text(
                 "Stock: $qty | Price Type: ${book['price_type']}",
-                style: labelStyle,
+                style: purpleStyle,
               ),
 
               const SizedBox(height: 4),
@@ -643,7 +661,13 @@ class _AddBooksPageState extends State<AddBooksPage> {
               _loadBooks();
               setState(() {});
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Book deleted successfully")),
+                const SnackBar(
+                    content: Text(
+                      "Book deleted successfully",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    backgroundColor: Colors.red,
+                ),
               );
             },
             child: const Text("Delete", style: TextStyle(color: Colors.red)),

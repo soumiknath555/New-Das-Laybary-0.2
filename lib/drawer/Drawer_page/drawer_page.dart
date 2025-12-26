@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:new_das_laybary_2/page/add_page/add_books_page.dart';
-import 'package:new_das_laybary_2/page/belling_page/belling_page.dart';
+import 'package:new_das_laybary_2/page/belling_page/belling_main_page/belling_page.dart';
 import 'package:new_das_laybary_2/page/publication_page/publication_page.dart';
 import 'package:new_das_laybary_2/page/settings/settings_page.dart';
 import 'package:new_das_laybary_2/page/shope_name/shop_name_page.dart';
 
+import '../../page/Purchase/purchase_page.dart';
 import '../../page/add_page/add_page.dart';
 import '../../page/books_type/books_type.dart';
 import '../../page/class_name/class_name_page.dart';
@@ -32,6 +33,7 @@ class _DrawerPageState extends State<DrawerPage> {
     ClassNamePage(),
     SchoolNamePage(),
     ShopNamePage(),
+    PurchasePage(),
     SettingsPage(),
   ] ;
 
@@ -94,10 +96,14 @@ class _DrawerPageState extends State<DrawerPage> {
               title: Text("Add Shop Name"),
               onTap: ()=> onItemTapped(7),
             ),
+            ListTile(
+              title: Text("Purchase Page"),
+              onTap: ()=> onItemTapped(8),
+            ),
 
             ListTile(
               title: Text("Setting Page"),
-              onTap: ()=> onItemTapped(8),
+              onTap: ()=> onItemTapped(9),
             ),
 
           ],

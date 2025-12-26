@@ -1,5 +1,8 @@
-import 'package:sqflite/sqflite.dart';
+import 'dart:io';
+
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
 
 class SchoolBookDB {
   static final SchoolBookDB instance = SchoolBookDB._init();
@@ -7,15 +10,32 @@ class SchoolBookDB {
 
   SchoolBookDB._init();
 
+  // ---------------- DB INIT ----------------
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB('school_books.db');
     return _database!;
   }
 
+  /// ✅ Android + Windows safe path
   Future<Database> _initDB(String fileName) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, fileName);
+    Directory dir;
+
+    if (Platform.isWindows) {
+      // 👉 Windows custom DB folder
+      dir = Directory(r'C:\Users\Soumik Nath\New Das Laybary');
+
+      // folder না থাকলে auto create
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+    } else {
+      // 👉 Android / Mobile safe directory
+      dir = await getApplicationDocumentsDirectory();
+    }
+
+    final String path = join(dir.path, fileName);
+    print('DB PATH: $path');
 
     return await openDatabase(
       path,
@@ -24,7 +44,9 @@ class SchoolBookDB {
     );
   }
 
-  Future _createDB(Database db, int version) async {
+
+  // ---------------- TABLE ----------------
+  Future<void> _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE school_books (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,6 +63,8 @@ class SchoolBookDB {
     ''');
   }
 
+  // ---------------- QUERIES ----------------
+
   /// 🔹 LEFT SIDE : class list
   Future<List<String>> getSaveClasses(int schoolId) async {
     final db = await database;
@@ -54,7 +78,9 @@ class SchoolBookDB {
       [schoolId],
     );
 
-    return result.map((e) => e['save_class'] as String).toList();
+    return result
+        .map((e) => e['save_class'] as String)
+        .toList();
   }
 
   /// 🔹 RIGHT SIDE : books by class

@@ -1,9 +1,10 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../../ui_helper/ui_colors.dart';
-import '../add_page/add_page_db.dart';
-import '../school_name/school_wise_book/select_school_wise_book_db.dart';
-import 'invoice/invoice_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../ui_helper/ui_colors.dart';
+import '../../add_page/add_page_db.dart';
+import '../../school_name/school_wise_book/select_school_wise_book_db.dart';
+import '../invoice/invoice_page.dart';
+import 'books_grid_view.dart';
 
 class BillingPage extends StatefulWidget {
   const BillingPage({super.key});
@@ -13,18 +14,16 @@ class BillingPage extends StatefulWidget {
 }
 
 
-/// 🏫 School + Class selection
-Map<String, dynamic>? selectedSchool;
-String? selectedSchoolClass;
-
-/// dropdown data
-List<Map<String, dynamic>> schoolList = [];
-List<String> schoolClassList = [];
-
-
-
 
 class _BillingPageState extends State<BillingPage> {
+
+  bool showProfit = true; // default ON
+
+
+  /// ===== SCHOOL DROPDOWN DATA =====
+  List<Map<String, dynamic>> schoolList = [];
+  List<String> schoolClassList = [];
+
 
   /// ✅ DISCOUNT TEXT (Percent / Flat)
   String getDiscountText(Map<String, dynamic> book) {
@@ -64,6 +63,9 @@ class _BillingPageState extends State<BillingPage> {
   /// 🔹 Auto selected books (school wise)
   final Set<int> autoSelectedBookIds = {};
 
+  final ScrollController _horizontalController = ScrollController();
+
+
 
   ///     School Wise book
 
@@ -71,13 +73,27 @@ class _BillingPageState extends State<BillingPage> {
   String? selectedSchoolClass;
 
 
-
   @override
   void initState() {
     super.initState();
+    _loadProfitToggle();
     _loadBooks();
     _loadSchools();
   }
+
+  Future<void> _loadProfitToggle() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      showProfit = prefs.getBool('show_profit') ?? true;
+    });
+  }
+
+  Future<void> _saveProfitToggle(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('show_profit', value);
+  }
+
+
 
 
   Future<void> _loadSchools() async {
@@ -132,17 +148,71 @@ class _BillingPageState extends State<BillingPage> {
   }
 
 
+  Future<void> _afterInvoiceSaved() async {
+    setState(() {
+      cart.clear();
+      selectedSchoolId = null;
+      selectedSchoolClass = null;
+      schoolClassList.clear();
+      loading = true;
+    });
+
+    /// 🔥 DB থেকে নতুন stock load
+    await _loadBooks();
+
+    setState(() {
+      loading = false;
+    });
+  }
+
+
+  int get totalProfit {
+    int profit = 0;
+
+    for (final entry in cart.entries) {
+      final book = books.firstWhere((b) => b['id'] == entry.key);
+
+      final int qty = entry.value;
+      final int sell = (book['sell_price'] ?? 0).toInt();
+      final int purchase =
+      (book['purchase_price'] ?? book['mrp'] ?? 0).toInt();
+
+      profit += (sell - purchase) * qty;
+    }
+
+    return profit;
+  }
 
 
 
   Future<void> _loadBooks() async {
     final data = await BooksAddDB.instance.getAllBooks();
-    setState(() {
 
-      // Extract unique values for dropdowns
-      classList = data.map((b) => (b['class_name'] ?? '').toString()).toSet().toList()..removeWhere((e) => e.isEmpty);
-      publicationList = data.map((b) => (b['publication_name'] ?? '').toString()).toSet().toList()..removeWhere((e) => e.isEmpty);
-      mediumList = data.map((b) => (b['book_language'] ?? '').toString()).toSet().toList()..removeWhere((e) => e.isEmpty);
+    setState(() {
+      classList = [
+        "All Class",
+        ...data
+            .map((b) => (b['class_name'] ?? '').toString())
+            .where((e) => e.isNotEmpty && e != "All Class")
+            .toSet(),
+      ];
+
+
+      publicationList = [
+        "All Publication",
+        ...data
+            .map((b) => (b['publication_name'] ?? '').toString())
+            .where((e) => e.isNotEmpty && e != "All Publication")
+            .toSet(),
+      ];
+
+      mediumList = [
+        "All Books Type",
+        ...data
+            .map((b) => (b['book_language'] ?? '').toString())
+            .where((e) => e.isNotEmpty && e != "All Books Type")
+            .toSet(),
+      ];
 
 
       books = data;
@@ -150,15 +220,6 @@ class _BillingPageState extends State<BillingPage> {
     });
   }
 
-  final Map<String, Color> mediumColors = {
-    "Text": Colors.blueAccent,
-    "Pen": Colors.deepPurple,
-    "Pencil": Colors.orange,
-    "Khata": Colors.brown,
-    "Helping Tools": Colors.teal,
-    "Chatro bondhu": Colors.pink,
-    "Sohika": Colors.green,
-  };
 
 
   void addToCart(int bookId) {
@@ -223,10 +284,28 @@ class _BillingPageState extends State<BillingPage> {
       backgroundColor: AppColors.BLACK_9,
       appBar: AppBar(
         backgroundColor: AppColors.BLACK_9,
-        title: const Text("Billing",
-            style: TextStyle(color: Colors.white)),
+        title: const Text("Billing", style: TextStyle(color: Colors.white)),
         centerTitle: true,
+        actions: [
+          Row(
+            children: [
+              const Text(
+                "Profit",
+                style: TextStyle(color: Colors.white70),
+              ),
+              Switch(
+                value: showProfit,
+                activeColor: Colors.greenAccent,
+                onChanged: (v) {
+                  setState(() => showProfit = v);
+                  _saveProfitToggle(v);
+                },
+              ),
+            ],
+          ),
+        ],
       ),
+
 
       body: loading
           ? const Center(
@@ -234,273 +313,21 @@ class _BillingPageState extends State<BillingPage> {
       )
           : Row(
         children: [
+
           /// ================= LEFT: BOOK LIST =================
           Expanded(
             flex: 2,
-            child: Column(
-              children: [
+            child: Container(
+              color: AppColors.BLACK_9,
+              child: BookGridPage(
+                cart: cart,
+                onAdd: addToCart,
+                onRemove: removeFromCart,
+              ),
 
-                /// ================= FILTER DROPDOWNS =================
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-
-                      /// CLASS
-                      DropdownButton<String>(
-                        value: selectedClass,
-                        dropdownColor: AppColors.BLACK_7,
-                        items: ["All Class", ...classList].map((v) {
-                          return DropdownMenuItem(
-                            value: v,
-                            child: Text(v, style: const TextStyle(color: Colors.white)),
-                          );
-                        }).toList(),
-                        onChanged: (v) {
-                          setState(() => selectedClass = v!);
-                        },
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      /// PUBLICATION
-                      DropdownButton<String>(
-                        value: selectedPublication,
-                        dropdownColor: AppColors.BLACK_7,
-                        items: ["All Publication", ...publicationList].map((v) {
-                          return DropdownMenuItem(
-                            value: v,
-                            child: Text(v, style: const TextStyle(color: Colors.white)),
-                          );
-                        }).toList(),
-                        onChanged: (v) {
-                          setState(() => selectedPublication = v!);
-                        },
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      /// MEDIUM
-                      DropdownButton<String>(
-                        value: selectedMedium,
-                        dropdownColor: AppColors.BLACK_7,
-                        items: ["All Books Type", ...mediumList].map((v) {
-                          return DropdownMenuItem(
-                            value: v,
-                            child: Text(v, style: const TextStyle(color: Colors.white)),
-                          );
-                        }).toList(),
-                        onChanged: (v) {
-                          setState(() => selectedMedium = v!);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                /// ================= GRIDVIEW =================
-                Expanded(
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: filteredBooks.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.50,
-                    ),
-                    itemBuilder: (context, index) {
-                      final book = filteredBooks[index];
-                      final int id = book['id'];
-                      final bool isSelected = cart.containsKey(id);
-                      final int qty = cart[id] ?? 0;
-                      final String bookMedium =
-                      (book['book_language'] ?? '').toString();
-
-
-
-                      return Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.BLACK_7,
-                          borderRadius: BorderRadius.circular(8),
-
-                          /// ✅ ONLY THIS IS NEW (GREEN BORDER)
-                          border: isSelected
-                              ? Border.all(color: Colors.greenAccent, width: 3)
-                              : null,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-
-                            /// BOOK IMAGE
-                            Center(
-                              child: FutureBuilder<Uint8List?>(
-                                future: BooksAddDB.instance.getFirstImageByBookId(id),
-                                builder: (_, snap) {
-                                  if (!snap.hasData) {
-                                    return Container(
-                                      width: 150,
-                                      height: 200,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.BLACK_6,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: const Icon(Icons.book,
-                                          color: Colors.white54, size: 50),
-                                    );
-                                  }
-                                  return ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.memory(
-                                      snap.data!,
-                                      width: 150,
-                                      height: 200,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-
-                            const SizedBox(height: 8),
-
-                      /// TITLE
-                            Text(
-                              (book['title'] ?? '').toString(),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-
-                            const SizedBox(height: 4),
-
-                            /// AUTHOR
-                            if (book['author'] != null)
-                              Text(
-                                "Author: ${book['author']}",
-                                style: const TextStyle(color: Colors.white70),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-
-                            const SizedBox(height: 4),
-
-                            /// PUBLICATION
-                            if (book['publication_name'] != null)
-                              Text(
-                                "Publication: ${book['publication_name']}",
-                                style: const TextStyle(color: Colors.white70),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-
-                            /// MEDIUM
-                            if (bookMedium.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Container(
-                                  padding:
-                                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: mediumColors[bookMedium] ?? Colors.grey,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    bookMedium,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ),
-
-                            const SizedBox(height: 6),
-
-                            /// PRICE
-                            Row(
-                              children: [
-                                Text(
-                                  "₹${book['mrp'] ?? 0}",
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    decoration: TextDecoration.lineThrough,
-                                    decorationThickness: 2,
-                                    decorationColor: Colors.red,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Stock: ${book['quantity'] ?? 0}",
-                                  style: const TextStyle(
-                                    color: Colors.orangeAccent,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            Text(
-                              "Sell: ₹${book['sell_price'] ?? 0}",
-                              style: const TextStyle(color: Colors.green),
-                            ),
-
-                            Text(
-                              "Disc: ${getDiscountText(book)}",
-                              style: const TextStyle(
-                                color: Colors.redAccent,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-
-                            const Spacer(),
-
-                            /// ADD / REMOVE
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                if (qty == 0)
-                                  IconButton(
-                                    icon: Icon(Icons.add_circle,
-                                        color: AppColors.GREEN_9, size: 40),
-                                    onPressed: () => addToCart(id),
-                                  )
-                                else ...[
-                                  IconButton(
-                                    icon: const Icon(Icons.remove,
-                                        color: Colors.redAccent),
-                                    onPressed: () => removeFromCart(id),
-                                  ),
-                                  Text(
-                                    qty.toString(),
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 16),
-                                  ),
-                                  IconButton(
-                                    icon:
-                                    Icon(Icons.add, color: AppColors.GREEN_9),
-                                    onPressed: () => addToCart(id),
-                                  ),
-                                ]
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-
-                    },
-                  ),
-                ),
-              ],
             ),
           ),
+
 
 
 
@@ -604,9 +431,16 @@ class _BillingPageState extends State<BillingPage> {
                       ),
                     )
                         : SingleChildScrollView(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Column(
+                      child: Scrollbar(
+                        controller: _horizontalController,
+                        thumbVisibility: true, // 🔥 scrollbar always visible
+                        thickness: 8,
+                        radius: const Radius.circular(10),
+                        interactive: true,
+                        child: SingleChildScrollView(
+                          controller: _horizontalController,
+                          scrollDirection: Axis.horizontal,
+                          child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
 
@@ -622,9 +456,10 @@ class _BillingPageState extends State<BillingPage> {
                               ),
                               dataTextStyle:
                               const TextStyle(color: Colors.white70),
-                              columns: const [
+                              columns: [
                                 DataColumn(label: Text("Book")),
-                                DataColumn(label: Text("Profit")), // ✅ NEW
+                                if (showProfit)
+                                  const DataColumn(label: Text("Profit")),
                                 DataColumn(label: Text("Author")),
                                 DataColumn(label: Text("Publication")),
                                 DataColumn(label: Text("Medium")),
@@ -659,17 +494,18 @@ class _BillingPageState extends State<BillingPage> {
                                     DataCell(Text(book['title'] ?? '',
                                         style: const TextStyle(
                                             color: Colors.white))),
-                                    DataCell(
-                                      Text(
-                                        "₹$profit",
-                                        style: TextStyle(
-                                          color: profit >= 0
-                                              ? Colors.greenAccent
-                                              : Colors.redAccent,
-                                          fontWeight: FontWeight.bold,
+                                    if (showProfit)
+                                      DataCell(
+                                        Text(
+                                          "₹$profit",
+                                          style: TextStyle(
+                                            color: profit >= 0
+                                                ? Colors.greenAccent
+                                                : Colors.redAccent,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
-                                    ),
                                     DataCell(Text(book['author'] ?? '',
                                         style: const TextStyle(
                                             color: Colors.orangeAccent))),
@@ -689,9 +525,16 @@ class _BillingPageState extends State<BillingPage> {
                                     DataCell(Text("₹$sell",
                                         style: const TextStyle(
                                             color: Colors.greenAccent))),
-                                    DataCell(Text(discText,
-                                        style: const TextStyle(
-                                            color: Colors.redAccent))),
+                                    DataCell(
+                                      (book['price_type'] ?? '') == "Discount" &&
+                                          (book['sell_discount'] ?? 0) > 0
+                                          ? Text(
+                                        discText,
+                                        style: const TextStyle(color: Colors.redAccent),
+                                      )
+                                          : const SizedBox(),
+                                    ),
+
                                     DataCell(Text("$qty")),
                                     DataCell(Text("₹$total",
                                         style: const TextStyle(
@@ -728,6 +571,8 @@ class _BillingPageState extends State<BillingPage> {
                               }
 
                               return Row(
+
+
                                 children: [
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -740,13 +585,18 @@ class _BillingPageState extends State<BillingPage> {
                                               color: Colors.orangeAccent,
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold)),
-                                      Text("💹 Total Profit: ₹$totalProfit",
+                                      if (showProfit)
+                                        Text(
+                                          "💹 Total Profit: ₹$totalProfit",
                                           style: TextStyle(
-                                              color: totalProfit >= 0
-                                                  ? Colors.greenAccent
-                                                  : Colors.redAccent,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold)),
+                                            color: totalProfit >= 0
+                                                ? Colors.greenAccent
+                                                : Colors.redAccent,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+
                                       const SizedBox(height: 10),
 
                                     ],
@@ -754,42 +604,58 @@ class _BillingPageState extends State<BillingPage> {
 
                                   SizedBox(width: 400),
 
+
                                   FloatingActionButton.extended(
+
                                     backgroundColor:
                                     AppColors.GREEN_9,
                                     icon: const Icon(
                                         Icons.receipt_long),
                                     label:
                                     const Text("Invoice"),
-                                    onPressed: () {
-                                      Navigator.push(
+                                    onPressed: () async {
+                                      String getSelectedSchoolName() {
+                                        final s = schoolList.firstWhere(
+                                              (e) => e['school_id'] == selectedSchoolId,
+                                          orElse: () => {},
+                                        );
+                                        return s['school_name'] ?? '';
+                                      }
+
+
+                                      final result = await Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (_) =>
-                                              InvoicePage(
-                                                cart: cart,
-                                                books: books,
-                                              ),
+                                          builder: (_) => InvoicePage(
+                                            cart: cart,
+                                            books: books,
+                                            schoolName: getSelectedSchoolName(),
+                                            className: selectedSchoolClass ?? '',
+                                          ),
                                         ),
                                       );
+
+                                      /// 🔥 INVOICE SAVED
+                                      if (result == true) {
+                                        _afterInvoiceSaved();
+                                      }
+
                                     },
                                   ),
                                 ],
                               );
                             }),
+
+                            const SizedBox(height: 20),
                           ],
                         ),
                       ),
                     ),
-                  ),
+                  ),)
                 ],
               ),
             ),
           ),
-
-
-
-
 
         ],
       ),
@@ -809,10 +675,24 @@ class _BillingPageState extends State<BillingPage> {
               "Items: ${cart.length}",
               style: const TextStyle(color: Colors.white),
             ),
+
+            if (showProfit)
+              Text(
+                "💹 Total Profit: ₹$totalProfit",
+                style: TextStyle(
+                  color: totalProfit >= 0
+                      ? Colors.cyanAccent
+                      : Colors.redAccent,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+
             Text(
               "Total ₹$totalAmount",
               style: TextStyle(
-                  color: AppColors.GREEN_9,
+                  color: Colors.deepOrange,
                   fontSize: 18,
                   fontWeight: FontWeight.bold),
             ),

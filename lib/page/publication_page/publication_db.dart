@@ -1,5 +1,8 @@
-import 'package:sqflite/sqflite.dart';
+import 'dart:io';
+
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
 
 class PublicationDB {
   static final PublicationDB instance = PublicationDB._init();
@@ -13,9 +16,25 @@ class PublicationDB {
     return _database!;
   }
 
-  Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+  /// ✅ Android + Windows safe DB path
+  Future<Database> _initDB(String fileName) async {
+    Directory dir;
+
+    if (Platform.isWindows) {
+      // 👉 Windows custom DB folder
+      dir = Directory(r'C:\Users\Soumik Nath\New Das Laybary');
+
+      // folder না থাকলে auto create
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+    } else {
+      // 👉 Android / Mobile safe directory
+      dir = await getApplicationDocumentsDirectory();
+    }
+
+    final String path = join(dir.path, fileName);
+    print('DB PATH: $path');
 
     return await openDatabase(
       path,
@@ -23,6 +42,7 @@ class PublicationDB {
       onCreate: _onCreateDB,
     );
   }
+
 
   Future _onCreateDB(Database db, int version) async {
     await db.execute('''
@@ -33,18 +53,20 @@ class PublicationDB {
     ''');
   }
 
+  // ================= CRUD =================
+
   Future<int> addPublication(String name) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.insert("publication", {'name': name});
   }
 
   Future<List<Map<String, dynamic>>> getAllPublications() async {
-    final db = await instance.database;
+    final db = await database;
     return await db.query("publication", orderBy: "id ASC");
   }
 
   Future<int> updatePublication(int id, String newName) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.update(
       "publication",
       {'name': newName},
@@ -54,7 +76,7 @@ class PublicationDB {
   }
 
   Future<int> deletePublication(int id) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.delete(
       "publication",
       where: "id = ?",

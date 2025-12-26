@@ -3,10 +3,14 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  charset_converter
   connectivity_plus
   file_selector_windows
   irondash_engine_context
+  printing
+  share_plus
   super_native_extensions
+  url_launcher_windows
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
